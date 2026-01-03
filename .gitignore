@@ -4,7 +4,6 @@ output/
 node_modules/
 .psc-ide-port
 .purs-repl
-spago.lock
 package-lock.json
 yarn.lock
 pnpm-lock.yaml

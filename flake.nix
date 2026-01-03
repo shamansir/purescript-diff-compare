@@ -106,7 +106,6 @@
           type = "app";
           program = toString (pkgs.writeShellScript "spago-run" ''
             export PATH="${pkgs.lib.makeBinPath buildInputs}:$PATH"
-            cd ${./.}
             exec ${spago}/bin/spago run "$@"
           '');
         };
