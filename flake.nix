@@ -24,10 +24,14 @@
 
         # Use PureScript 0.15.15 or newer
         # easy-purescript-nix provides the latest stable versions
+        # The 'purs-0_15_15' attribute should provide PureScript 0.15.15
+        # Fallback to 'purs' if the specific version isn't available
         purs = easy-ps.purs-0_15_15 or easy-ps.purs;
         
         # Use Spago 0.93 or latest available
         # easy-purescript-nix regularly updates to latest spago versions
+        # The 'spago-next' typically has the latest version (0.93+)
+        # Fallback to 'spago' if spago-next isn't available
         spago = easy-ps.spago-next or easy-ps.spago;
 
         # Build the project
