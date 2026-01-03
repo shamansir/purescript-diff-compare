@@ -23,22 +23,23 @@
                        ps-overlay.overlays.default
                      ];
         };
-        
+
         # Build dependencies (required for nix run/build)
         buildDependencies = [
           pkgs.esbuild
           pkgs.purs-backend-es
-          pkgs.purs-unstable
+          # pkgs.purs-unstable
+          pkgs.purs-bin.purs-0_15_15
           pkgs.spago-unstable
           # pkgs.nodejs
           pkgs.dhall
         ];
-        
+
         # Development-only dependencies (IDE support, etc.)
         devOnlyDependencies = [
           pkgs.dhall-lsp-server
         ];
-        
+
         myPackage =
             pkgs.mkSpagoDerivation {
               spagoYaml = ./spago.yaml;
