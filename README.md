@@ -15,6 +15,10 @@ and use this version of `shouldEqual` when I want to compare large bulks or text
 
 ## Examples
 
+### Line by line
+
+Scrolls through every line and outputs them one by one, marks equal lines as `..`, and if it finds a difference between the lines in two samples, it outputs the _left_ line first and then the _right_ line:
+
 ```purescript
 lineByLineComparison NoLimit "hello\nworld" "hello\nthere"
 ```
@@ -27,6 +31,10 @@ Renders:
 << there
 ```
 
+### Only different lines
+
+Outputs only different lines from two samples as two stacks above each other, first lines from the _left_ and then lines from the _right_:
+
 ```purescript
 onlyDiffsComparison NoLimit "hello\nworld" "hello\nthere"
 ```
@@ -38,6 +46,10 @@ Renders:
 ---------------------------------------------------------------
 << there
 ```
+
+### Compare above / below
+
+Outputs equal and different lines from two samples as two stacks above each other, first lines from the _left_ and then lines from the _right_:
 
 ```purescript
 twoStacksComparison NoLimit "hello\nworld" "hello\nthere"
