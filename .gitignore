@@ -1,0 +1,7 @@
+output/
+.spago/
+.psci_modules/
+node_modules/
+.psc-ide-port
+.purs-repl
+*.lock
