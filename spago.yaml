@@ -12,7 +12,9 @@ package:
     - tuples
   test:
     main: Test.Main
-    dependencies: []
+    dependencies:
+      - spec
+      - spec-node
 workspace:
   packageSet:
     registry: 68.10.1

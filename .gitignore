@@ -1,3 +1,4 @@
 .spago/
 output/
 .psc-ide-port
+.spec-results
