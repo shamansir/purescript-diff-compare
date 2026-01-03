@@ -1,0 +1,9 @@
+output/
+.spago/
+.psci_modules/
+node_modules/
+.psc-ide-port
+.purs-repl
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

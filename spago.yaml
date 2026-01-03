@@ -1,0 +1,13 @@
+package:
+  name: purescript-diff-compare
+  dependencies:
+    - prelude
+    - effect
+    - console
+  build:
+    strict: true
+  test:
+    main: Test.Main
+workspace:
+  package_set:
+    registry: 51.1.0
