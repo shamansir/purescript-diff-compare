@@ -2,8 +2,14 @@ module Test.Main where
 
 import Prelude
 
-import Data.Text.Diff (DiffLine(..), Limit(..), compareByLines, compareMany, lineByLineComparison, onlyDiffsComparison, twoStacksComparison)
 import Effect (Effect)
+
+import Data.Text.Diff
+  ( DiffLine(..), Limit(..), Comparator(..), ComparisonResult(..), Whitespace(..)
+  , compareBy, compareBy_, compareByWP, compareByLines, compareMany
+  , lineByLineComparison, onlyDiffsComparison, twoStacksComparison
+  )
+
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
@@ -76,3 +82,64 @@ main = runSpecAndExitProcess [consoleReporter] do
       it "shows both sides with equal markers" do
         let result = twoStacksComparison NoLimit "hello\nworld" "hello\nthere"
         result `shouldEqual` ".. hello\n>> world\n---------------------------------------------------------------\n.. hello\n<< there"
+
+    describe "compareBy" do
+      it "returns ThingsEqual for identical strings" do
+        compareBy (Zip NoLimit) "hello" "hello"
+          `shouldEqual` ThingsEqual
+
+      it "returns ThingsMismatch with Stack comparator" do
+        case compareBy (Stack NoLimit) "hello\nworld" "hello\nthere" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ".. hello\n>> world\n---------------------------------------------------------------\n.. hello\n<< there"
+
+      it "returns ThingsMismatch with Zip comparator" do
+        case compareBy (Zip NoLimit) "hello\nworld" "hello\nthere" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ".. hello\n>> world\n<< there"
+
+      it "returns ThingsMismatch with OnlyDifferent comparator" do
+        case compareBy (OnlyDifferent NoLimit) "hello\nworld" "hello\nthere" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ">> world\n---------------------------------------------------------------\n<< there"
+
+      it "returns ThingsMismatch with Plain comparator" do
+        case compareBy Plain "hello" "world" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` "\"hello\" ≠ \"world\""
+
+      it "returns ThingsMismatch with Silent comparator" do
+        case compareBy Silent "hello" "world" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` "x"
+
+    describe "compareByWP" do
+      it "highlights whitespace in output" do
+        case compareByWP (Zip NoLimit) "hello world" "hello  world" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ">> hello◦world\n<< hello◦◦world"
+
+      it "highlights tabs in output" do
+        case compareByWP (Zip NoLimit) "hello\tworld" "hello  world" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ">> hello→world\n<< hello◦◦world"
+
+    describe "compareBy_" do
+      it "allows explicit whitespace configuration" do
+        case compareBy_ HighlightWhitespace (Zip NoLimit) "a b" "a  b" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ">> a◦b\n<< a◦◦b"
+
+      it "works with NormalOutput whitespace" do
+        case compareBy_ NormalOutput (Zip NoLimit) "a b" "a  b" of
+          ThingsEqual -> false `shouldEqual` true
+          ThingsMismatch { diff } ->
+            diff `shouldEqual` ">> a b\n<< a  b"

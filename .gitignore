@@ -2,3 +2,4 @@
 output/
 .psc-ide-port
 .spec-results
+.DS_Store

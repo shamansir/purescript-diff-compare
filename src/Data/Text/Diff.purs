@@ -6,11 +6,19 @@ module Data.Text.Diff
     , DiffLine(..)
     , Limit(..)
     , Comparator(..)
+    , Whitespace(..)
+    , ComparisonResult(..)
     , lineByLineComparison
     , onlyDiffsComparison
     , twoStacksComparison
+    , lineByLineComparisonWP
+    , onlyDiffsComparisonWP
+    , twoStacksComparisonWP
     , compareMany
     , compareByLines
+    , compareBy
+    , compareByWP
+    , compareBy_
     ) where
 
 import Prelude
@@ -48,6 +56,12 @@ data DiffLine a
     | NewRight a       -- ^ Line exists only on the right side
     | BothEqual a      -- ^ Line is identical on both sides
     | Different a a    -- ^ Line differs between left and right sides
+
+
+-- | Renders whitespace in output with special highlighting.
+data Whitespace
+    = HighlightWhitespace
+    | NormalOutput
 
 
 derive instance Eq a => Eq (DiffSide a)
@@ -108,12 +122,12 @@ data Limit
     | Limit Int  -- ^ Display at most the specified number of lines
 
 
--- | Defines different comparison and formatting strategies (currently not used in exported functions).
+-- | Defines different comparison and formatting strategies
 data Comparator
-    = Stack Limit           -- ^ Stack format with limit
-    | Zip Limit             -- ^ Zip format with limit
-    | OnlyDifferent Limit   -- ^ Show only differences with limit
-    | Plain                 -- ^ Plain format
+    = Stack Limit           -- ^ Stack format (complete left block on top of the complete right block, separated), with limit
+    | Zip Limit             -- ^ Zip format (every other different line zipped, same lines are merged as it is), with limit
+    | OnlyDifferent Limit   -- ^ Zip format with only differences, with limit
+    | Plain                 -- ^ Plain format (show both values with no special markings if they differ)
     | Silent                -- ^ No output
 
 
@@ -134,15 +148,24 @@ data Comparator
 -- | << there
 -- | ```
 lineByLineComparison :: Limit -> String -> String -> String
-lineByLineComparison limit a b =
+lineByLineComparison = _lineByLineComparison NormalOutput
+
+
+-- | Same as `lineByLineComparison`, but with whitespace characters highlighted.
+lineByLineComparisonWP :: Limit -> String -> String -> String
+lineByLineComparisonWP = _lineByLineComparison HighlightWhitespace
+
+
+_lineByLineComparison :: Whitespace -> Limit -> String -> String -> String
+_lineByLineComparison wp limit a b =
     let
         comparedLines = compareByLines a b
         (adjustedLines /\ linesLeft) = _adjustByLimit limit comparedLines
     in
         case linesLeft of
-            NoneLeft -> String.joinWith "\n" $ toDiffString <$> comparedLines
+            NoneLeft -> String.joinWith "\n" $ toDiffString <$> map (_awp wp) <$> comparedLines
             LinesLeft n ->
-                (String.joinWith "\n" $ toDiffString <$> adjustedLines)
+                (String.joinWith "\n" $ toDiffString <$> map (_awp wp) <$> adjustedLines)
                 <> "\n... "<> show n <> " lines more."
 
 
@@ -162,19 +185,28 @@ lineByLineComparison limit a b =
 -- | << there
 -- | ```
 onlyDiffsComparison :: Limit -> String -> String -> String
-onlyDiffsComparison limit a b =
+onlyDiffsComparison = _onlyDiffsComparison NormalOutput
+
+
+-- | Same as `onlyDiffsComparison`, but with whitespace characters highlighted.
+onlyDiffsComparisonWP :: Limit -> String -> String -> String
+onlyDiffsComparisonWP = _onlyDiffsComparison HighlightWhitespace
+
+
+_onlyDiffsComparison :: Whitespace -> Limit -> String -> String -> String
+_onlyDiffsComparison wp limit a b =
     let
         comparison = compareByLines a b
         formatLeft = case _ of
-            New l     -> Just $ prefixes.add <> " " <> l
+            New l     -> Just $ prefixes.add <> " " <> _awp wp l
             Absent    -> Nothing
             Equal _   -> Nothing
-            Changed l -> Just $ prefixes.left <> " " <> l
+            Changed l -> Just $ prefixes.left <> " " <> _awp wp l
         formatRight = case _ of
-            New r     -> Just $ prefixes.sub <> " " <> r
+            New r     -> Just $ prefixes.sub <> " " <> _awp wp r
             Absent    -> Nothing
             Equal _   -> Nothing
-            Changed r -> Just $ prefixes.right <> " " <> r
+            Changed r -> Just $ prefixes.right <> " " <> _awp wp r
         (formattedA /\ leftA) = _adjustByLimit limit $ Array.catMaybes $ formatLeft  <$> left  <$> comparison
         (formattedB /\ leftB) = _adjustByLimit limit $ Array.catMaybes $ formatRight <$> right <$> comparison
     in
@@ -202,19 +234,28 @@ onlyDiffsComparison limit a b =
 -- | << there
 -- | ```
 twoStacksComparison :: Limit -> String -> String -> String
-twoStacksComparison limit a b =
+twoStacksComparison = _twoStacksComparison NormalOutput
+
+
+-- | Same as `twoStacksComparison`, but with whitespace characters highlighted.
+twoStacksComparisonWP :: Limit -> String -> String -> String
+twoStacksComparisonWP = _twoStacksComparison HighlightWhitespace
+
+
+_twoStacksComparison :: Whitespace -> Limit -> String -> String -> String
+_twoStacksComparison wp limit a b =
     let
         comparison = compareByLines a b
         formatLeft = case _ of
-            New l     -> Just $ prefixes.add <> " " <> l
+            New l     -> Just $ prefixes.add   <> " " <> _awp wp l
             Absent    -> Nothing
-            Equal l   -> Just $ prefixes.eq <> " " <> l
-            Changed l -> Just $ prefixes.left <> " " <> l
+            Equal l   -> Just $ prefixes.eq    <> " " <> _awp wp l
+            Changed l -> Just $ prefixes.left  <> " " <> _awp wp l
         formatRight = case _ of
-            New r     -> Just $ prefixes.sub <> " " <> r
+            New r     -> Just $ prefixes.sub   <> " " <> _awp wp r
             Absent    -> Nothing
-            Equal r   -> Just $ prefixes.eq <> " " <> r
-            Changed r -> Just $ prefixes.right <> " " <> r
+            Equal r   -> Just $ prefixes.eq    <> " " <> _awp wp r
+            Changed r -> Just $ prefixes.right <> " " <> _awp wp r
         (formattedA /\ leftA) = _adjustByLimit limit $ Array.catMaybes $ formatLeft  <$> left  <$> comparison
         (formattedB /\ leftB) = _adjustByLimit limit $ Array.catMaybes $ formatRight <$> right <$> comparison
     in
@@ -269,6 +310,17 @@ _adjustByLimit (Limit n) source =
             if linesLeft > 0 then LinesLeft linesLeft else NoneLeft
 
 
+_applyWhitespace :: Whitespace -> String -> String
+_applyWhitespace HighlightWhitespace =
+    String.replaceAll (String.Pattern " ") (String.Replacement "◦") >>>
+    String.replaceAll (String.Pattern "\t") (String.Replacement "→")
+_applyWhitespace NormalOutput = identity
+
+
+-- shorthand for `_applyWhitespace`
+_awp = _applyWhitespace :: Whitespace -> String -> String
+
+
 -- | Splits two strings by newlines and compares them line-by-line,
 -- | returning an array of `DiffLine` results.
 -- |
@@ -283,6 +335,60 @@ compareByLines a b =
         linesA = String.split (String.Pattern "\n") a
         linesB = String.split (String.Pattern "\n") b
     in compareMany linesA linesB
+
+
+--| Represents the result of a comparison operation, indicating whether
+--| the compared items are equal or mismatched, along with the diff output if they are indeed not equal.
+data ComparisonResult
+    = ThingsEqual
+    | ThingsMismatch { diff :: String }
+
+
+instance Eq ComparisonResult where
+    eq ThingsEqual ThingsEqual = true
+    eq (ThingsMismatch { diff: d1 }) (ThingsMismatch { diff: d2 }) = d1 == d2 -- if things differ differently, the result is also considered different
+    -- eq (ThingsMismatch _) (ThingsMismatch _) = true
+    eq _ _ = false
+
+
+instance Show ComparisonResult where
+    show = case _ of
+        ThingsEqual -> "=="
+        ThingsMismatch { diff } -> "/= { diff: " <> String.take 10 diff <> "... }"
+
+
+-- | Compares two `Diffable` values using the specified `Comparator`,
+-- | returning a `ComparisonResult` that indicates whether they are equal or not,
+-- | along with the appropriate diff output if they differ.
+compareBy :: forall t. Diffable t => Comparator -> (t -> t -> ComparisonResult)
+compareBy = compareBy_ NormalOutput
+
+
+-- | Compares two `Diffable` values using the specified `Comparator`,
+-- | returning a `ComparisonResult` that indicates whether they are equal or not,
+-- | along with the appropriate diff output, including whitespace characters, if they differ.
+compareByWP :: forall t. Diffable t => Comparator -> (t -> t -> ComparisonResult)
+compareByWP = compareBy_ HighlightWhitespace
+
+
+-- | Compares two `Diffable` values using the specified `Comparator` and `Whitespace` configuration,,
+-- | returning a `ComparisonResult` that indicates whether they are equal or not,
+-- | along with the appropriate diff output, including whitespace characters, if they differ.
+compareBy_ :: forall t. Diffable t => Whitespace -> Comparator -> (t -> t -> ComparisonResult)
+compareBy_ wp cmp = \sA sB -> if sA == sB then ThingsEqual else ThingsMismatch { diff: _getDiffyBy wp cmp (toDiffString sA) (toDiffString sB) }
+
+
+_getDiffyBy :: Whitespace -> Comparator -> (String -> String -> String)
+_getDiffyBy NormalOutput (Stack limit)         = twoStacksComparison limit
+_getDiffyBy NormalOutput (Zip limit)           = lineByLineComparison limit
+_getDiffyBy NormalOutput (OnlyDifferent limit) = onlyDiffsComparison limit
+_getDiffyBy NormalOutput Plain                 = \sA sB -> if sA /= sB then show sA <> " ≠ " <> show sB else ""
+_getDiffyBy NormalOutput Silent                = \sA sB -> if sA /= sB then "x" else ""
+_getDiffyBy HighlightWhitespace (Stack limit)         = twoStacksComparisonWP limit
+_getDiffyBy HighlightWhitespace (Zip limit)           = lineByLineComparisonWP limit
+_getDiffyBy HighlightWhitespace (OnlyDifferent limit) = onlyDiffsComparisonWP limit
+_getDiffyBy HighlightWhitespace Plain                 = \sA sB -> if sA /= sB then show sA <> " ≠ " <> show sB else ""
+_getDiffyBy HighlightWhitespace Silent                = \sA sB -> if sA /= sB then "x" else ""
 
 
 instance Diffable String where
